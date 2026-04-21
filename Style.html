@@ -1,0 +1,81 @@
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+<style>
+  :root {
+    --primary-color: #1e3a8a; /* สีน้ำเงินกรมท่า ราชการ */
+    --secondary-color: #0ea5e9;
+  }
+  
+  body {
+    font-family: 'Sarabun', sans-serif;
+    background-color: #f3f4f6;
+  }
+
+  .glass-panel {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  }
+
+  .btn-primary {
+    background-color: var(--primary-color);
+    color: white;
+    transition: all 0.2s;
+  }
+  
+  .btn-primary:hover {
+    background-color: #1e40af;
+    transform: translateY(-1px);
+  }
+
+  .btn-primary:disabled {
+    background-color: #9ca3af;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* Custom Scrollbar สำหรับตาราง */
+  .table-container::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .table-container::-webkit-scrollbar-track {
+    background: #f1f1f1; 
+  }
+  .table-container::-webkit-scrollbar-thumb {
+    background: #cbd5e1; 
+    border-radius: 10px;
+  }
+  .table-container::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8; 
+  }
+  
+  /* Loading Overlay */
+  #loadingOverlay {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(255,255,255,0.8);
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+  }
+  
+  .loader {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid var(--primary-color);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+  }
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+</style>

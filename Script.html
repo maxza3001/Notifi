@@ -1,0 +1,312 @@
+<script>
+    let rawData = []; // เก็บข้อมูล Dashboard
+
+    // ==========================================
+    // 1. Initialization
+    // ==========================================
+    document.addEventListener('DOMContentLoaded', () => {
+        // โหลดรายชื่อหน่วยงาน
+        google.script.run.withSuccessHandler(populateAgencies).getAgencyList();
+
+        // ตั้งค่า Input เลขบัตรประชาชนให้รับเฉพาะตัวเลข
+        const cidInput = document.getElementById('citizenId');
+        cidInput.addEventListener('input', function (e) {
+            this.value = this.value.replace(/[^0-9]/g, '');
+            if (this.value.length === 13) {
+                validateCID_JS(this.value);
+            } else {
+                clearErrors();
+            }
+        });
+
+        // ==========================================
+        // เพิ่มใหม่: ระบบดึงข้อมูล Dashboard อัตโนมัติ (Real-time)
+        // ==========================================
+        loadDashboardData(); // สั่งให้โหลดข้อมูลครั้งแรกเตรียมไว้เลย
+
+        setInterval(() => {
+            const vDash = document.getElementById('viewDashboard');
+            // เช็กว่ากำลังเปิดหน้า Dashboard อยู่หรือไม่ (ถ้าเปิดอยู่ ค่อยดึงข้อมูลเพื่อประหยัดทรัพยากร)
+            if (!vDash.classList.contains('hidden')) {
+                refreshDataSilent();
+            }
+        }, 2000); // ดึงข้อมูลใหม่ทุกๆ 2 วินาที (2000 ms)
+        // ==========================================
+
+        // Dashboard Search & Filter listeners
+        document.getElementById('searchInput').addEventListener('input', renderTable);
+        document.getElementById('filterStatus').addEventListener('change', renderTable);
+    });
+
+    // ==========================================
+    // 2. UI Control & Routing
+    // ==========================================
+    function switchTab(tab) {
+        const vForm = document.getElementById('viewForm');
+        const vDash = document.getElementById('viewDashboard');
+        const bForm = document.getElementById('btnTabForm');
+        const bDash = document.getElementById('btnTabDash');
+
+        if (tab === 'form') {
+            vForm.classList.remove('hidden');
+            vDash.classList.add('hidden');
+            bForm.classList.add('bg-blue-800');
+            bDash.classList.remove('bg-blue-800');
+        } else {
+            vForm.classList.add('hidden');
+            vDash.classList.remove('hidden');
+            bDash.classList.add('bg-blue-800');
+            bForm.classList.remove('bg-blue-800');
+            loadDashboardData(); // โหลดข้อมูลเมื่อเปิดหน้า Dashboard
+        }
+    }
+
+    function hideLoading() {
+        document.getElementById('loadingOverlay').style.display = 'none';
+    }
+
+    function showLoadingSpinner(btnId, isSpinning) {
+        const btn = document.getElementById(btnId);
+        if (isSpinning) {
+            btn.disabled = true;
+            btn.innerHTML = `<i class="ph ph-spinner animate-spin"></i> กำลังดำเนินการ...`;
+        } else {
+            btn.disabled = false;
+            if (btnId === 'btnSubmit') {
+                btn.innerHTML = `<i class="ph ph-floppy-disk"></i> บันทึกข้อมูล`;
+            } else if (btnId === 'btnSaveStatus') {
+                btn.innerHTML = `บันทึก`;
+            }
+        }
+    }
+
+    function togglePassword(inputId, iconId) {
+        const input = document.getElementById(inputId);
+        const icon = document.getElementById(iconId);
+        if (input.type === "password") {
+            input.type = "text";
+            icon.classList.replace('ph-eye-slash', 'ph-eye');
+        } else {
+            input.type = "password";
+            icon.classList.replace('ph-eye', 'ph-eye-slash');
+        }
+    }
+
+    // ==========================================
+    // 3. Form Logic
+    // ==========================================
+    function populateAgencies(list) {
+        const select = document.getElementById('agency');
+        list.forEach(agency => {
+            const opt = document.createElement('option');
+            opt.value = agency;
+            opt.textContent = agency;
+            select.appendChild(opt);
+        });
+        hideLoading(); // ปิด loading เมื่อโหลดหน่วยงานเสร็จ
+    }
+
+    function validateCID_JS(id) {
+        if (id.length !== 13) return false;
+        let sum = 0;
+        for (let i = 0; i < 12; i++) {
+            sum += parseInt(id.charAt(i)) * (13 - i);
+        }
+        const checkDigit = (11 - (sum % 11)) % 10;
+        const isValid = checkDigit === parseInt(id.charAt(12));
+
+        if (!isValid) {
+            document.getElementById('cidError').classList.remove('hidden');
+            document.getElementById('citizenId').classList.add('border-red-500', 'focus:ring-red-500');
+        } else {
+            clearErrors();
+        }
+        return isValid;
+    }
+
+    function clearErrors() {
+        document.getElementById('cidError').classList.add('hidden');
+        document.getElementById('citizenId').classList.remove('border-red-500', 'focus:ring-red-500');
+    }
+
+    function handleFormSubmit(e) {
+        e.preventDefault();
+
+        const fName = document.getElementById('firstName').value;
+        const lName = document.getElementById('lastName').value;
+        const cid = document.getElementById('citizenId').value;
+        const agency = document.getElementById('agency').value;
+
+        // Check sanitize (Basic JS regex to prevent html injection)
+        const scriptRegex = /<[^>]*>?/gm;
+        if (scriptRegex.test(fName) || scriptRegex.test(lName)) {
+            Swal.fire('ข้อผิดพลาด', 'ห้ามใช้สัญลักษณ์พิเศษในชื่อ-นามสกุล', 'error');
+            return;
+        }
+
+        if (!validateCID_JS(cid)) {
+            Swal.fire('ข้อมูลไม่ถูกต้อง', 'เลขประจำตัวประชาชน 13 หลักไม่ถูกต้องตามหลักกรมการปกครอง', 'warning');
+            return;
+        }
+
+        const formData = {
+            firstName: fName,
+            lastName: lName,
+            citizenId: cid,
+            agency: agency
+        };
+
+        showLoadingSpinner('btnSubmit', true);
+
+        google.script.run
+            .withSuccessHandler(function (response) {
+                showLoadingSpinner('btnSubmit', false);
+                if (response.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'สำเร็จ',
+                        text: response.message,
+                        confirmButtonColor: '#1e3a8a'
+                    });
+                    document.getElementById('requestForm').reset();
+                } else {
+                    Swal.fire('เกิดข้อผิดพลาด', response.message, 'error');
+                }
+            })
+            .withFailureHandler(function (error) {
+                showLoadingSpinner('btnSubmit', false);
+                Swal.fire('ข้อผิดพลาดระบบ', error.message, 'error');
+            })
+            .saveRequest(formData);
+    }
+
+    // ==========================================
+    // 4. Dashboard Logic
+    // ==========================================
+    function loadDashboardData() {
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-gray-500"><i class="ph ph-spinner animate-spin text-2xl"></i> กำลังโหลดข้อมูล...</td></tr>`;
+
+        google.script.run
+            .withSuccessHandler(function (data) {
+                rawData = data;
+                renderTable();
+            })
+            .withFailureHandler(function (error) {
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-red-500">โหลดข้อมูลล้มเหลว: ${error.message}</td></tr>`;
+            })
+            .getRequests();
+    }
+
+    // ฟังก์ชันรีเฟรชข้อมูลแบบเงียบๆ เบื้องหลัง
+    function refreshDataSilent() {
+        google.script.run
+            .withSuccessHandler(function (data) {
+                rawData = data;
+                renderTable(); // อัปเดตตารางทันทีเมื่อได้ข้อมูลใหม่
+            })
+            .getRequests();
+    }
+
+    function getStatusBadge(status) {
+        let color = 'bg-gray-100 text-gray-800';
+        if (status === 'รับเรื่องแล้ว') color = 'bg-blue-100 text-blue-800 border border-blue-200';
+        if (status === 'รอพิจารณา') color = 'bg-purple-100 text-purple-800 border border-purple-200';
+        if (status === 'อนุมัติแล้ว') color = 'bg-green-100 text-green-800 border border-green-200';
+        if (status === 'ยกเลิก') color = 'bg-red-100 text-red-800 border border-red-200';
+        return `<span class="px-2 py-1 text-xs font-medium rounded-full ${color}">${status}</span>`;
+    }
+
+    function renderTable() {
+        const search = document.getElementById('searchInput').value.toLowerCase();
+        const statusFilter = document.getElementById('filterStatus').value;
+        const tbody = document.getElementById('tableBody');
+        const emptyState = document.getElementById('emptyState');
+
+        tbody.innerHTML = '';
+        let count = 0;
+
+        rawData.forEach(row => {
+            // Filter logic
+            const textMatch = (row['ชื่อ-นามสกุล'] + row['ส่วนราชการ'] + row['เลขบัตรแบบปิดบางส่วน']).toLowerCase().includes(search);
+            const statusMatch = statusFilter === 'all' || row['สถานะคำขอ'] === statusFilter;
+
+            if (textMatch && statusMatch) {
+                count++;
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-blue-50 transition";
+                tr.innerHTML = `
+          <td class="px-4 py-3">
+            <div class="font-medium text-gray-800">${row['วันที่บันทึก']}</div>
+            <div class="text-xs text-gray-500">${row['เวลา']}</div>
+          </td>
+          <td class="px-4 py-3 font-medium text-blue-900">${row['ชื่อ-นามสกุล']}</td>
+          <td class="px-4 py-3 text-gray-600 truncate max-w-[200px]" title="${row['ส่วนราชการ']}">${row['ส่วนราชการ']}</td>
+          <td class="px-4 py-3 font-mono text-gray-600">${row['เลขบัตรแบบปิดบางส่วน']}</td>
+          <td class="px-4 py-3">${getStatusBadge(row['สถานะคำขอ'])}</td>
+          <td class="px-4 py-3 text-center">
+            <button onclick="openModal('${row['rowNumber']}', '${row['สถานะคำขอ']}', '${row['หมายเหตุ'] || ''}')" 
+              class="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 rounded-md text-xs hover:bg-gray-50 hover:text-blue-600 transition shadow-sm">
+              <i class="ph ph-pencil-simple"></i> จัดการ
+            </button>
+          </td>
+        `;
+                tbody.appendChild(tr);
+            }
+        });
+
+        document.getElementById('totalCount').innerText = count;
+
+        if (count === 0) {
+            emptyState.classList.remove('hidden');
+        } else {
+            emptyState.classList.add('hidden');
+        }
+    }
+
+    // ==========================================
+    // 5. Modal & Status Update
+    // ==========================================
+    function openModal(rowNumber, currentStatus, currentNote) {
+        document.getElementById('modalRowNumber').value = rowNumber;
+        document.getElementById('modalStatus').value = currentStatus;
+        document.getElementById('modalNote').value = currentNote;
+        document.getElementById('modalNotify').checked = false;
+        document.getElementById('statusModal').classList.remove('hidden');
+    }
+
+    function closeModal() {
+        document.getElementById('statusModal').classList.add('hidden');
+    }
+
+    function saveStatus() {
+        const rowNum = document.getElementById('modalRowNumber').value;
+        const status = document.getElementById('modalStatus').value;
+        const note = document.getElementById('modalNote').value;
+        const notify = document.getElementById('modalNotify').checked;
+
+        showLoadingSpinner('btnSaveStatus', true);
+
+        google.script.run
+            .withSuccessHandler(function (res) {
+                showLoadingSpinner('btnSaveStatus', false);
+                if (res.success) {
+                    closeModal();
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'อัปเดตสถานะสำเร็จ',
+                        showConfirmButton: false,
+                        timer: 1500
+                    });
+                    loadDashboardData(); // Refresh table
+                } else {
+                    Swal.fire('ข้อผิดพลาด', res.message, 'error');
+                }
+            })
+            .withFailureHandler(function (err) {
+                showLoadingSpinner('btnSaveStatus', false);
+                Swal.fire('ข้อผิดพลาด', err.message, 'error');
+            })
+            .updateRequestStatus(rowNum, status, note, notify);
+    }
+</script>

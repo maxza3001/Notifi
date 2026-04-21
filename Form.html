@@ -1,0 +1,57 @@
+<div class="max-w-2xl mx-auto glass-panel rounded-xl p-6 sm:p-8">
+  <div class="text-center mb-8">
+    <i class="ph ph-file-text text-5xl text-blue-900 mb-2"></i>
+    <h2 class="text-2xl font-bold text-blue-900">บันทึกคำขอหนังสือบำเหน็จค้ำประกัน</h2>
+    <p class="text-gray-500 text-sm mt-1">กรุณากรอกข้อมูลให้ครบถ้วนและตรวจสอบความถูกต้อง</p>
+  </div>
+
+  <form id="requestForm" onsubmit="handleFormSubmit(event)">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
+      
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">ชื่อ (ไม่ต้องระบุคำนำหน้า)</label>
+        <input type="text" id="firstName" name="firstName" required autocomplete="off"
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition">
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">นามสกุล</label>
+        <input type="text" id="lastName" name="lastName" required autocomplete="off"
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition">
+      </div>
+
+      <div class="sm:col-span-2">
+        <label class="block text-sm font-medium text-gray-700 mb-1">สังกัดส่วนราชการ</label>
+        <select id="agency" name="agency" required
+          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition bg-white">
+          <option value="">-- เลือกส่วนราชการ --</option>
+          </select>
+      </div>
+
+      <div class="sm:col-span-2 relative">
+        <label class="block text-sm font-medium text-gray-700 mb-1">เลขประจำตัวประชาชน (13 หลัก)</label>
+        <div class="relative">
+          <input type="password" id="citizenId" name="citizenId" required maxlength="13" inputmode="numeric"
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition tracking-widest font-mono">
+          <button type="button" onclick="togglePassword('citizenId', 'eyeIcon')"
+            class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-blue-600">
+            <i id="eyeIcon" class="ph ph-eye-slash text-xl"></i>
+          </button>
+        </div>
+        <p id="cidError" class="text-red-500 text-xs mt-1 hidden">เลขประจำตัวประชาชนไม่ถูกต้อง</p>
+      </div>
+
+    </div>
+
+    <div class="flex gap-4 mt-8 border-t pt-5">
+      <button type="button" onclick="document.getElementById('requestForm').reset(); clearErrors();" 
+        class="flex-1 bg-gray-100 text-gray-700 py-2.5 rounded-lg font-medium hover:bg-gray-200 transition">
+        ล้างฟอร์ม
+      </button>
+      <button type="submit" id="btnSubmit" 
+        class="flex-1 btn-primary py-2.5 rounded-lg font-medium flex justify-center items-center gap-2">
+        <i class="ph ph-floppy-disk"></i> บันทึกข้อมูล
+      </button>
+    </div>
+  </form>
+</div>
