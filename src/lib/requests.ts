@@ -226,7 +226,7 @@ export async function getRequestTelegramContextByReqId(reqId: string) {
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("requests")
-    .select("agency, citizen_id, masked_citizen_id")
+    .select("full_name, agency, citizen_id, masked_citizen_id")
     .eq("req_id", reqId)
     .maybeSingle();
 
@@ -239,6 +239,7 @@ export async function getRequestTelegramContextByReqId(reqId: string) {
   }
 
   return {
+    fullName: data.full_name ?? "",
     agency: data.agency ?? "",
     citizenId: data.citizen_id ?? "",
     maskedCitizenId: data.masked_citizen_id ?? "",
